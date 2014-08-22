@@ -99,7 +99,13 @@ if (whitening)
 end
 
 % Learn filtVecs matrix
-fvMatrix = learn_filtVecs(patches, numFilters);
+if exist([CIFAR_DIR '/fvMatrix.mat'], 'file')
+	load([CIFAR_DIR '/fvMatrix.mat']);
+else
+    fvMatrix = learn_filtVecs(patches, numFilters);
+    save([CIFAR_DIR '/fvMatrix.mat'], 'fvMatrix');
+end
+
 %{
 % run K-means
 %centroids = run_kmeans(patches, numCentroids, 50);
@@ -114,7 +120,6 @@ else
   trainXC = extract_features(trainX, centroids, rfSize, CIFAR_DIM);
 end
 %}
-save([CIFAR_DIR '/fvMatrix.mat'], 'fvMatrix');
 dataDim = rfSize * rfSize * 3;
 %{
 if exist([CIFAR_DIR '/fv0.mat'], 'file')
