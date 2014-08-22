@@ -12,7 +12,7 @@ assert(~strcmp(CIFAR_DIR, '/path/to/cifar/cifar-10-batches-mat/'), ...
 %% Configuration
 addpath minFunc;
 rfSize = 6;
-%numCentroids=1600;
+numCentroids=1600;
 numFilters=100;
 whitening=true;
 numPatches = 400000;
