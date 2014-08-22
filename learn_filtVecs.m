@@ -2,19 +2,27 @@ function V = learn_filtVecs(patches, numFilters)
 % Learn optimal values for filtVecs matrix via Stochastic Gradient Descent
 	dataDim = size(patches, 2);   % d = size of patch vector
 	V = randn(dataDim, numFilters);   % initial values
-	epochSize = 10;
+	epochSize = 50;
 	patchSize = length(patches);
-	alpha = 1;   % changeable
+	alpha = .1;   % changeable
 	
 	for e = 1:epochSize
 		fprintf('Learning FilterVecs: epoch %d\n', e);
 		patchOrder = randperm(patchSize);   % new random order of patches
+        cost = 0;
 		for t = 1:patchSize   % update filtVecs matrix one random patch at a time
-			grad = patch_grad(V, patches(patchOrder(t),:)');
+            patch = patches(patchOrder(t),:)';
+			grad = patch_grad(V, patch);
 			V = V - alpha * grad;
+            cost = cost + patch_cost(V, patch);
         end
-        fprintf('Final gradient magnitude squared: %d\n', sum(sum(grad .^ 2)));
-	end
+        fprintf('Cost from epoch %d: %d\n', e, cost);
+    end
+
+function cost = patch_cost(V, patch)
+% calculate the cost of current filtVecs matrix V
+    diff = sigmoid_sae(V * sigmoid_sae(V' * patch)) - patch;
+    cost = diff' * diff;
 
 function grad = patch_grad(V, patch)
 % calculate gradient of the reconstruction error w.r.t. filtVecs matrix V

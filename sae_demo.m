@@ -114,6 +114,7 @@ else
   trainXC = extract_features(trainX, centroids, rfSize, CIFAR_DIM);
 end
 %}
+save([CIFAR_DIR '/fvMatrix.mat'], 'fvMatrix');
 dataDim = rfSize * rfSize * 3;
 %{
 if exist([CIFAR_DIR '/fv0.mat'], 'file')
