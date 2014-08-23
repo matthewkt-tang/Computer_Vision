@@ -12,7 +12,7 @@ assert(~strcmp(CIFAR_DIR, '/path/to/cifar/cifar-10-batches-mat/'), ...
 %% Configuration
 addpath minFunc;
 rfSize = 6;
-numCentroids=1600;
+%numCentroids=1600;
 numFilters=100;
 whitening=true;
 numPatches = 400000;
@@ -99,7 +99,7 @@ if (whitening)
 end
 
 % learn initial filtVecs by running K-means clustering
-filtVecs = run_kmeans(patches, numCentroids, 50);
+filtVecs = run_kmeans(patches, numFilters, 50);
 
 allPatches = get_patches(trainX, numFilters, rfSize, CIFAR_DIM);
 %save([CIFAR_DIR 'patches.mat'], 'allPatches');
