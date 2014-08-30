@@ -176,15 +176,7 @@ for t = 1:maxIters
     fprintf('Finished iteration %d\n', t);
 end
 
-% one iteration for spatial pyramid (numImages x (4*numFilters) matrix)
-trainSP = extract_features_sae_q(allPatches, filterVecs);
-if biased, 
-    trainSP = [trainSP, ones(size(trainSP, 1), 1)];
-end
-wVecs = zeros(size(trainSP,2)*max(trainY), 1);
-wVecs = train_svm(trainSP, trainY, C, wVecs(:));
-
-[val,labels] = max(trainSP * wVecs, [], 2);
+[val,labels] = max(trainFV * wVecs, [], 2);
 fprintf('Train accuracy %f%%\n', 100 * (1 - sum(labels ~= trainY) / length(trainY)));
 
 %%%%% TESTING %%%%%
