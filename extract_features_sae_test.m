@@ -31,8 +31,8 @@ function XC = extract_features_sae_test(X, filtVecs, rfSize, CIFAR_DIM)
       patches = bsxfun(@minus, patches, M) * P;
     end
 
-	patches = sigmoid_sae([patches ones(size(patches,1),1)] * filtVecs'];
-	%XC(i,:) = [];jj
+	patches = sigmoid_sae([patches ones(size(patches,1),1)] * filtVecs');
+	%XC(i,:) = [];
 
 	% quadrant calculation
 	patches = reshape(patches, prows, pcols, numFilters);
