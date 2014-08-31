@@ -9,7 +9,7 @@ function XC = extract_features_sae_test(X, filtVecs, rfSize, CIFAR_DIM)
   halfc = round(pcols/2);
 
   % compute features for all training images
-  XC = zeros(size(X,1), numFilters);
+  XC = zeros(size(X,1), numFilters*4);
   for i=1:size(X,1)
     if (mod(i,1000) == 0) fprintf('Extracting features: %d / %d\n', i, size(X,1)); end
     
