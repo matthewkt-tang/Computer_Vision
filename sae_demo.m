@@ -157,8 +157,8 @@ wVecs = zeros(size(trainFV,2)*max(trainY), 1);
 for t = 1:maxIters
     % fix filterVecs, train wVecs
 	wVecs = train_svm(trainFV, trainY, C, wVecs(:));
-    % test based on current filtVecs & wVecs
-    test_filtVecs(testX, testY, filtVecs, wVecs, rfSize, CIFAR_DIM, biased);
+    % test based on current filtVecs & wVecs (without spatial pyramid)
+    %test_filtVecs(testX, testY, filtVecs, wVecs, rfSize, CIFAR_DIM, biased);
     % fix wVecs, solve filterVecs
 	%pred = trainFV * wVecs;
     fprintf('Training filtVecs...\n');
@@ -209,5 +209,5 @@ testXCs = [testXCs, ones(size(testXCs,1),1)];
 % 
 % fprintf('Test accuracy %f%%\n', 100 * (1 - sum(labels ~= testY) / length(testY)));
 
-% test based on final filtVecs & wVecs
+% test based on final filtVecs & wVecs (with spatial pyramid)
 test_filtVecs(testX, testY, filtVecs, wVecs, rfSize, CIFAR_DIM, biased);

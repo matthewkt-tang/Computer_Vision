@@ -1,6 +1,5 @@
 function new_filtVecs = train_filtVecs(allPatches, trainY, C, w, filtVecs, rfSize, dim)
-
-  fvSize = [size(filtVecs,1), rfSize * rfSize * dim(3)];
+  fvSize = [size(filtVecs,1), rfSize * rfSize * dim(3) + 1];
   %yVecs = convert trainY to txC matrix with 1 & -1 as values
   yVecs = bsxfun(@(y,ypos) 2*(y==ypos)-1, trainY, 1:size(w,2));
 
@@ -11,7 +10,7 @@ function new_filtVecs = train_filtVecs(allPatches, trainY, C, w, filtVecs, rfSiz
 
 % 1-vs-all L2-filtVecs loss function;  similar to LibLinear.
 function [loss, grad] = my_l2filtVecsLoss(filtVecs, P, yv, C, w, fvSize)
-  t1 = tic;
+  %t1 = tic;
   gamma = 1;
   filtVecs = reshape(filtVecs, fvSize(1), fvSize(2));
   trainFV = extract_features_sae_p(P, filtVecs);
@@ -20,12 +19,13 @@ function [loss, grad] = my_l2filtVecsLoss(filtVecs, P, yv, C, w, fvSize)
   grad = zeros(fvSize(1), fvSize(2));
   numImg = size(P,1);
   FminusY = pr - yv;
-  FminusY(find(pr .* yv > 1)) = 0;
+  FminusY(pr .* yv > 1) = 0;
   loss = .5 * sum(sum(w .^ 2)) + C * mean(sum(FminusY .^ 2, 2));
   for k = 1:fvSize(1)
     % calculate delta(Q)/delta(vk) for each image i
+    ds = zeros(numImg, fvSize(2));
     for i = 1:numImg
-      patches = P{i};
+      patches = [P{i} ones(size(P{1},1),1)];
 	  % patches: m x d, filtVecs: n x d
 	  gk = sigmoid_sae(patches * filtVecs(k,:)');   % m x 1
 	  one_minus_gk = 1 - gk;
@@ -35,7 +35,7 @@ function [loss, grad] = my_l2filtVecsLoss(filtVecs, P, yv, C, w, fvSize)
     % w: n x numClass, FminusY: numImg x numClass, grad: n x d
 	grad(k,:) = w(k,:) * FminusY' * ds * C / numImg;
   end
-  t2 = toc(t1);
+  %t2 = toc(t1);
   %fprintf('loss = %.4f, (%.4f sec)\n', loss, t2);
   fprintf('loss = %.3f\n', loss);
   grad = grad(:);

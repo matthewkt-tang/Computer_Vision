@@ -1,4 +1,4 @@
-function test_filtVecs( testX, testY, filtVecs, wVecs, rfSize, dim, biased)
+function test_filtVecs(testX, testY, filtVecs, wVecs, rfSize, dim, biased)
 % Print and return accuracy on test data for certain filtVecs
 testFV = extract_features_sae_test(testX, filtVecs, rfSize, dim);
 if biased, 
