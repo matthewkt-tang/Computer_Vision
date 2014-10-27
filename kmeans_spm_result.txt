@@ -1,0 +1,33 @@
+% whitening results
+accuracy for gamma=2.00: 41.40%
+accuracy for gamma=5.00: 43.90%
+accuracy for gamma=10.00: 44.18%  (29.34% without SPM)
+accuracy for gamma=20.00: 44.50% 
+normalized filter vectors
+accuracy for gamma=2.00: 34.96%
+accuracy for gamma=5.00: 41.16%
+accuracy for gamma=10.00: 43.12%
+accuracy for gamma=20.00: 43.80%
+
+% non-whitening results
+accuracy for gamma=0.50: 39.80%
+accuracy for gamma=1.00: 40.08%
+accuracy for gamma=2.00: 40.30%
+accuracy for gamma=5.00: 40.12%
+accuracy for gamma=10.00: 39.96%
+normalized filter vectors
+accuracy for gamma=0.50: 35.88%
+accuracy for gamma=1.00: 38.28%
+accuracy for gamma=2.00: 39.72%
+accuracy for gamma=5.00: 40.40%
+accuracy for gamma=10.00: 40.32%
+
+5000 training, 5000 testing
+
+Kmeans+SPM 39.88%
+Optim+SPM 53.82%
+
+standard (500000 training, 10000 testing)
+Kmeans+SPM      46.49%
+optim+SPM 	61.07%
+

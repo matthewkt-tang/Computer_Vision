@@ -1,4 +1,5 @@
-CIFAR_DIR='/kusers/academic/matthew/cifar/';
+%CIFAR_DIR='/kusers/academic/matthew/cifar/';
+CIFAR_DIR='../../data/cifar-10-batches-mat/';
 
 %{
 assert(~strcmp(CIFAR_DIR, '/path/to/cifar/cifar-10-batches-mat/'), ...
@@ -7,56 +8,49 @@ assert(~strcmp(CIFAR_DIR, '/path/to/cifar/cifar-10-batches-mat/'), ...
         'data from:  http://www.cs.toronto.edu/~kriz/cifar-10-matlab.tar.gz']);
 %}    
 
-%CIFAR_DIR = 'D:/data/cifar-10-batches-mat/';
 
 %% Configuration
-addpath minFunc;
+%addpath minFunc;
 rfSize = 6;
 %numCentroids=1600;
 numFilters=100;
-whitening=true;
+whitening=false;%true;
 numPatches = 400000;
 CIFAR_DIM=[32 32 3];
-biased = true;
+biased = 1;%-1 for unbiased;
+C = 100;
+useSPM = 1;% 1 for using SPM of 2x2 grid, 0 for standard BOW
 
-if exist([CIFAR_DIR '/train.mat'], 'file')
-	load([CIFAR_DIR '/train.mat']);
-else
-	%% Load CIFAR training data
-	fprintf('Loading training data...\n');
-	f1=load([CIFAR_DIR '/data_batch_1.mat']);
-	f2=load([CIFAR_DIR '/data_batch_2.mat']);
-	f3=load([CIFAR_DIR '/data_batch_3.mat']);
-	f4=load([CIFAR_DIR '/data_batch_4.mat']);
-	f5=load([CIFAR_DIR '/data_batch_5.mat']);
+%% Load CIFAR training data
+fprintf('Loading training data...\n');
+f1=load([CIFAR_DIR '/data_batch_1.mat']);
+f2=load([CIFAR_DIR '/data_batch_2.mat']);
+f3=load([CIFAR_DIR '/data_batch_3.mat']);
+f4=load([CIFAR_DIR '/data_batch_4.mat']);
+f5=load([CIFAR_DIR '/data_batch_5.mat']);
 
-	% trim data
+% trim data
 %{
-	trainSize = 500;
-	dl1 = trimData([f1.data f1.labels],trainSize);
-	dl2 = trimData([f2.data f2.labels],trainSize);
-	dl3 = trimData([f3.data f3.labels],trainSize);
-	dl4 = trimData([f4.data f4.labels],trainSize);
-	dl5 = trimData([f5.data f5.labels],trainSize);
-	f1data = dl1(:,1:end-1);
-	f2data = dl2(:,1:end-1);
-	f3data = dl3(:,1:end-1);
-	f4data = dl4(:,1:end-1);
-	f5data = dl5(:,1:end-1);
-	f1labels = dl1(:,end);
-	f2labels = dl2(:,end);
-	f3labels = dl3(:,end);
-	f4labels = dl4(:,end);
-	f5labels = dl5(:,end);
+trainSize = 500;
+dl1 = trimData([f1.data f1.labels],trainSize);
+dl2 = trimData([f2.data f2.labels],trainSize);
+dl3 = trimData([f3.data f3.labels],trainSize);
+dl4 = trimData([f4.data f4.labels],trainSize);
+dl5 = trimData([f5.data f5.labels],trainSize);
+f1data = dl1(:,1:end-1);
+f2data = dl2(:,1:end-1);
+f3data = dl3(:,1:end-1);
+f4data = dl4(:,1:end-1);
+f5data = dl5(:,1:end-1);
+f1labels = dl1(:,end);
+f2labels = dl2(:,end);
+f3labels = dl3(:,end);
+f4labels = dl4(:,end);
+f5labels = dl5(:,end);
 %}
-	trainX = double([f1.data; f2.data; f3.data; f4.data; f5.data]);
-	trainY = double([f1.labels; f2.labels; f3.labels; f4.labels; f5.labels]) + 1; % add 1 to labels!
-	%trainX = double([f1data; f2data; f3data; f4data; f5data]);
-	%trainY = double([f1labels; f2labels; f3labels; f4labels; f5labels]) + 1; % add 1 to labels!
-	%clear dl1 dl2 dl3 dl4 dl5 f1data f2data f3data f4data f5data f1labels f2labels f3labels f4labels f5labels;
-	clear f1 f2 f3 f4 f5;
-	save([CIFAR_DIR '/train.mat'], 'trainX', 'trainY');
-end
+trainX = double([f1.data; f2.data; f3.data; f4.data; f5.data]);
+trainY = double([f1.labels; f2.labels; f3.labels; f4.labels; f5.labels]) + 1; % add 1 to labels!	
+clear f1 f2 f3 f4 f5;
 
 %% Load CIFAR test data
 fprintf('Loading test data...\n');
@@ -74,39 +68,93 @@ testY = double(f1.labels) + 1;
 %clear dl1 f1data f1labels;
 clear f1;
 
-% extract random patches
-patches = zeros(numPatches, rfSize*rfSize*3);
-for i=1:numPatches
-  if (mod(i,10000) == 0) fprintf('Extracting patch: %d / %d\n', i, numPatches); end
-  
-  r = random('unid', CIFAR_DIM(1) - rfSize + 1);
-  c = random('unid', CIFAR_DIM(2) - rfSize + 1);
-  patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
-  patch = patch(r:r+rfSize-1,c:c+rfSize-1,:);
-  patches(i,:) = patch(:)';
-end
 
-% normalize for contrast
-patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
-
-% whiten
-if (whitening)
-  C = cov(patches);
-  M = mean(patches);
-  [V,D] = eig(C);
-  P = V * diag(sqrt(1./(diag(D) + 0.1))) * V';
-  patches = bsxfun(@minus, patches, M) * P;
-end
 
 % learn initial filtVecs by running K-means clustering
-filtVecs = run_kmeans(patches, numFilters, 50);
+if exist('kmeans_codebook.mat', 'file'),
+	load('kmeans_codebook.mat', 'filtVecs');
+else
+    % extract random patches for kmeans clustering
+    patches = zeros(numPatches, rfSize*rfSize*3);
+    for i=1:numPatches
+      if (mod(i,10000) == 0) fprintf('Extracting patch: %d / %d\n', i, numPatches); end
 
-allPatches = get_patches(trainX, numFilters, rfSize, CIFAR_DIM);
-%save([CIFAR_DIR 'patches.mat'], 'allPatches');
-trainFV = extract_features_sae_p(allPatches, filtVecs);
-if biased, 
-    trainFV = [trainFV, ones(size(trainFV, 1), 1)];
+      r = random('unid', CIFAR_DIM(1) - rfSize + 1);
+      c = random('unid', CIFAR_DIM(2) - rfSize + 1);
+      patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
+      patch = patch(r:r+rfSize-1,c:c+rfSize-1,:);
+      patches(i,:) = patch(:)';
+    end
+
+    % normalize for contrast
+    patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
+
+    % whiten
+    if (whitening)
+      C = cov(patches);
+      M = mean(patches);
+      [V,D] = eig(C);
+      P = V * diag(sqrt(1./(diag(D) + 0.1))) * V';
+      patches = bsxfun(@minus, patches, M) * P;
+    end
+	filtVecs = run_kmeans(patches, numFilters, 50);
+	% need to normalise filtVecs to unit norms
+	save('kmeans_codebook.mat', 'filtVecs');
 end
+
+filtVecs = [filtVecs, zeros(size(filtVecs, 1),1)];
+%allPatches = get_patches(trainX, rfSize, CIFAR_DIM, whitening);
+% randomly select 5000 images for training and 5000 images for validation
+randidx = randperm(length(trainY));
+idxtrain = randidx(1:5000);
+idxval = randidx(5001:10000);
+trainY = trainY([idxtrain, idxval]); 
+allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, useSPM);
+
+%{
+idx1 = 1:5000;
+idx2 = 1:5000;
+gamma = 10;
+% repeat with BOW
+allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, 0);
+trainFV = extract_features_sae_p(allPatches(idx1, :), filtVecs, gammas(i));
+valFV = extract_features_sae_p(allPatches(idx2, :), filtVecs, gammas(i));
+model = lsvmtrain(trainY(idx1), sparse(trainFV), ['-s 2 -c ' num2str(C/size(trainFV, 1)) ' -B ' num2str(biased)]);
+[~, accu] = lsvmpredict(trainY(idx2), valFV, model);
+fprintf('accuracy for gamma=%.2f: %.2f%%\n', gammas(i), accu);
+% repeat with SPM
+allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, 1);
+trainFV = extract_features_sae_p(allPatches(idx1, :), filtVecs, gammas(i));
+valFV = extract_features_sae_p(allPatches(idx2, :), filtVecs, gammas(i));
+model = lsvmtrain(trainY(idx1), sparse(trainFV), ['-s 2 -c ' num2str(C/size(trainFV, 1)) ' -B ' num2str(biased)]);
+[~, accu] = lsvmpredict(trainY(idx2), valFV, model);
+fprintf('accuracy for gamma=%.2f: %.2f%%\n', gammas(i), accu);
+%}    	
+
+
+% choose optimal gamma values (for sigmoid) from cross validation
+gammas = [0.5 1 2 5 10];
+for i=1:length(gammas),	
+	trainFV = extract_features_sae_p(allPatches(idxtrain, :), filtVecs, gammas(i));
+	valFV = extract_features_sae_p(allPatches(idxval, :), filtVecs, gammas(i));
+	model = lsvmtrain(trainY(idxtrain), sparse(trainFV), ['-s 2 -c ' num2str(C/size(trainFV, 1)) ' -B ' num2str(biased)]);
+	[~, accu] = lsvmpredict(trainY(idxval), valFV, model);
+	fprintf('accuracy for gamma=%.2f: %.2f%%\n', gammas(i), accu);
+end
+
+ 
+% repeat the above process again but with normalized filtVecs
+disp('normalized filter vectors');
+filtVecs = bsxfun(@times, filtVecs, 1./sqrt(sum(filtVecs.^2,2)));
+for i=1:length(gammas),
+	trainFV = extract_features_sae_p(allPatches(idxtrain, :), filtVecs, gammas(i));
+	valFV = extract_features_sae_p(allPatches(idxval, :), filtVecs, gammas(i));
+	model = lsvmtrain(trainY(idxtrain), sparse(trainFV), ['-s 2 -c ' num2str(C/size(trainFV, 1)) ' -B ' num2str(biased)]);
+	[~, accu] = lsvmpredict(trainY(idxval), valFV, model);
+	fprintf('accuracy for gamma=%.2f: %.2f%%\n', gammas(i), accu);
+end
+return;
+
 %{
 % standardize data
 trainXC_mean = mean(trainXC);
