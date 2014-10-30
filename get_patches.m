@@ -1,8 +1,20 @@
-function allPatches = get_patches(X, rfSize, CIFAR_DIM, whitening, useSPM)
-% X input image matrix [l by prod(size(CIFAR_DIM)) matrix]
+function allPatches = get_patches(X, imdim, parm)
+% Input: X [Nxd]: input images in rows
+%		imdim [3-vector]: image dimesion	 		   
+%	 		X input image matrix [l by prod(size(imdim)) matrix]
+%		parm.	whitening
+%				useSPM
+%				rfSize
+%				normtype
 % output (allPatches) is a cell of patches with same overall size as X
-  % wrong: can not set whitening value here, need to pass from outside
-  %whitening = false;
+
+    % set parameters
+	whitening = getparam(parm, 'whitening', 0);
+	useSPM = getparam(parm, 'useSPM', 1);
+	rfSize = getparam(parm, 'rfSize', 6);
+	% type of normalisation, 1 for unit norm, 2 for unit std for each variable
+	normtype = getparam(parm, 'normtype', 2);
+	assert(normtype==1 | normtype ==2);
   numImg = size(X,1);
   
   % retrieve patches from 4 spatial areas for all training images
@@ -11,9 +23,9 @@ function allPatches = get_patches(X, rfSize, CIFAR_DIM, whitening, useSPM)
   %  bottom-right of the ith image
   if useSPM,
       allPatches = cell(numImg,4);
-      labelI = zeros(CIFAR_DIM(1)-rfSize+1, CIFAR_DIM(2)-rfSize+1);
-      h1 = floor((CIFAR_DIM(1)-rfSize+1)/2);
-      h2 = floor((CIFAR_DIM(2)-rfSize+1)/2);
+      labelI = zeros(imdim(1)-rfSize+1, imdim(2)-rfSize+1);
+      h1 = floor((imdim(1)-rfSize+1)/2);
+      h2 = floor((imdim(2)-rfSize+1)/2);
       labelI(1:h1, 1:h2) = 1;	
       labelI(h1+1:end, 1:h2) = 2;
       labelI(1:h1, h2+1:end) = 3;
@@ -27,15 +39,20 @@ function allPatches = get_patches(X, rfSize, CIFAR_DIM, whitening, useSPM)
     
     % extract overlapping sub-patches into rows of 'patches'
 	% patches is a 729 by 108 matrix with patch feature vectors in columns
-    patches = [ im2col(reshape(X(i,1:1024),CIFAR_DIM(1:2)), [rfSize rfSize]) ;
-                im2col(reshape(X(i,1025:2048),CIFAR_DIM(1:2)), [rfSize rfSize]) ;
-                im2col(reshape(X(i,2049:end),CIFAR_DIM(1:2)), [rfSize rfSize]) ]';
+    patches = [ im2col(reshape(X(i,1:1024),imdim(1:2)), [rfSize rfSize]) ;
+                im2col(reshape(X(i,1025:2048),imdim(1:2)), [rfSize rfSize]) ;
+                im2col(reshape(X(i,2049:end),imdim(1:2)), [rfSize rfSize]) ]';
 	%% make sure dimensions of different arrays match each other
     %assert(size(patches,1)==length(labelI));
     % do preprocessing for each patch
     
     % normalize for contrast
-    patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
+	if normtype==1,
+		patches = bsxfun(@minus, patches, mean(patches,2));
+		patches = bsxfun(@times, patches, 1./(sqrt(sum(patches.^2, 2))+1e-6));
+	else
+		patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
+	end
     % whiten
     if (whitening)
       C = cov(patches);

@@ -20,7 +20,7 @@ numPatches = 400;%400000;
 CIFAR_DIM=[32 32 3];
 biased = 1;%-1 for unbiased;
 C = 100;
-useSPM = 0;% 1 for using SPM of 2x2 grid, 0 for standard BOW
+useSPM = 1;% 1 for using SPM of 2x2 grid, 0 for standard BOW
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
@@ -142,28 +142,44 @@ fprintf('Test accuracy = %.2f%%\n', accu);
 
 
 
-%allPatches = get_patches(trainX, rfSize, CIFAR_DIM, whitening);
+gp_parm = struct('rfSize', rfSize, 'whitening', whitening, 'useSPM', useSPM); 
 % randomly select 5000 images for training and 5000 images for validation
 randidx = randperm(length(trainY));
 idxtrain = randidx(1:5000);
 idxval = randidx(5001:10000);
-
-trainY = trainY([idxtrain, idxval]); 
-klist = [10 20 30]; %gamma = 1;
+trainY = trainY([idxtrain, idxval]);
 
 
+klist = [10:10:50 100]; %gamma = 1;
 % train with SPM
-allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, 1);
+allPatches = get_patches(trainX([idxtrain, idxval], :), CIFAR_DIM, gp_parm);
 for k=klist,
-    onetest(allPatches, trainY, filtVecs, 1:5000, 5001:10000, k, 'kmeans+spm');
+    onetest(allPatches, trainY, filtVecs, 1:5000, 5001:10000, k, [num2str(k) ': kmeans+spm']);    
 end
-%load fv1
-%onetest(allPatches, trainY, filtVecs, 1:5000, 5001:10000, gamma, 'optim+spm');
+load fv1
+for k=klist,    
+    onetest(allPatches, trainY, filtVecs, 1:5000, 5001:10000, k, [num2str(k) ': optim+spm']);
+end
+
+%{
+allPatches = get_patches(trainX([idxtrain, idxval], :), CIFAR_DIM, gp_parm);
+onetest0(allPatches, trainY, filtVecs, 1:5000, 5001:10000, 'kmeans+spm'); 
+load fv1
+onetest0(allPatches, trainY, filtVecs, 1:5000, 5001:10000, 'optim+spm');
 % % repeat with BOW
 % allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, 0);
 % onetest(allPatches, trainY, filtVecs, 1:5000, 5001:10000, gamma, 'kmeans+bow');
 % onetest(allPatches, trainY, fvMatrix', 1:5000, 5001:10000, gamma, 'optim+bow');
+%}
 
+
+function onetest0(allPatches, trainY, filtVecs, idx1, idx2, infostr)
+C = 100;
+trainFV = extract_features_sae_p(allPatches(idx1, :), filtVecs, 1);
+valFV = extract_features_sae_p(allPatches(idx2, :), filtVecs, 1);
+model = lsvmtrain(trainY(idx1), sparse(trainFV), ['-s 2 -c ' num2str(C/size(trainFV, 1)) ' -B 1']);
+[~, accu] = lsvmpredict(trainY(idx2), valFV, model);
+fprintf('%s: accuracy = %.2f%%\n', infostr, accu);
 
 
 
