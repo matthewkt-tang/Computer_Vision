@@ -15,6 +15,7 @@ rfSize = 6;
 %numCentroids=1600;
 numFilters=100;
 whitening=false;%true;
+normtype = 1;
 numPatches = 400000;
 CIFAR_DIM=[32 32 3];
 biased = 1;%-1 for unbiased;
@@ -71,8 +72,9 @@ clear f1;
 
 
 % learn initial filtVecs by running K-means clustering
-if exist('kmeans_codebook.mat', 'file'),
-	load('kmeans_codebook.mat', 'filtVecs');
+kmeansfile = 'kmeans_codebook_n.mat';
+if exist(kmeansfile, 'file'),
+	load(kmeansfile, 'filtVecs');
 else
     % extract random patches for kmeans clustering
     patches = zeros(numPatches, rfSize*rfSize*3);
@@ -87,7 +89,13 @@ else
     end
 
     % normalize for contrast
-    patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
+	if normtype==1,
+		patches = bsxfun(@minus, patches, mean(patches,2));
+		patches = bsxfun(@times, patches, 1./(sqrt(sum(patches.^2, 2))+1e-6));
+	else
+		patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
+	end
+    %patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
     % whiten
     if (whitening)
@@ -99,17 +107,19 @@ else
     end
 	filtVecs = run_kmeans(patches, numFilters, 50);
 	% need to normalise filtVecs to unit norms
-	save('kmeans_codebook.mat', 'filtVecs');
+	save(kmeansfile, 'filtVecs');
 end
 
 filtVecs = [filtVecs, zeros(size(filtVecs, 1),1)];
-%allPatches = get_patches(trainX, rfSize, CIFAR_DIM, whitening);
 % randomly select 5000 images for training and 5000 images for validation
 randidx = randperm(length(trainY));
 idxtrain = randidx(1:5000);
 idxval = randidx(5001:10000);
 trainY = trainY([idxtrain, idxval]); 
-allPatches = get_patches(trainX([idxtrain, idxval], :), rfSize, CIFAR_DIM, whitening, useSPM);
+gpparm = struct('whitening', whitening, 'useSPM', useSPM, 'normtype', normtype, 'rfSize', rfSize);
+allPatches = get_patches(trainX([idxtrain, idxval], :), CIFAR_DIM, gpparm);
+idxtrain = 1:5000;
+idxval = 5001:10000;
 
 %{
 idx1 = 1:5000;
@@ -141,6 +151,7 @@ for i=1:length(gammas),
 	[~, accu] = lsvmpredict(trainY(idxval), valFV, model);
 	fprintf('accuracy for gamma=%.2f: %.2f%%\n', gammas(i), accu);
 end
+return;
 
  
 % repeat the above process again but with normalized filtVecs

@@ -24,10 +24,30 @@ accuracy for gamma=10.00: 40.32%
 
 5000 training, 5000 testing
 
-Kmeans+SPM 39.88%
-Optim+SPM 53.82%
+Random+SPM << Kmeans
 
-standard (500000 training, 10000 testing)
+SAE+SPM > kmeans , < optim
+
+
+Kmeans+SPM (100) 39.88%, 41.54%
+Kmeans+SPM with sparse activation
+10:   44.16
+20:   45.92
+30:   45.28
+40:   45.12
+50:   42.32
+100:  40.78
+
+Optim (over random) +SPM 53.82%, 56.14%
+Optim+SPM with sparse activation
+10:   45.78
+20:   50.20
+30:   52.36
+40:   53.58
+50:   55.16
+100:   55.58
+
+standard (50000 training, 10000 testing)
 Kmeans+SPM      46.49%
 optim+SPM 	61.07%
 

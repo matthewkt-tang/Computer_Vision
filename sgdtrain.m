@@ -1,15 +1,15 @@
-function sgdtrain(wVecs, filtVecs, allPatches, trainY, parm)
+function sgdtrain_fv(wVecs, filtVecs, allPatches, trainY, parm)
 % train svm and filter vectors simultaneously using sgd algorithm
 % wVecs: (4*nfilt+1)*nc vector, assuming L1 SPM that divides the image into 4 cells
 % filtVecs: nfilt*(fd+1)
 
-error('this program was not finished yet');
 % set parameters
 C = parm.C;
 patchSize = parm.patchSize;
 imgdim = parm.imgdim;
 epochs = 10;%parm.epochs;
 batchSize = 50;%parm.batchSize;
+step = 0.15;%parm.stepsize
 % data dimension checks
 [nfilt, fd] = size(filtVecs);	fd = fd-1;
 nc = size(wVecs, 2);	
@@ -31,32 +31,41 @@ for e=1:epochs,
 		eidx = min(b*batchSize, N);
 		%allPatches(sidx:eidx);
 		yVecs = bsxfun(@(y,ypos)2*(y==ypos)-1, trainY(sidx:eidx), 1:size(w,2));
-		[gFiltVecs, gWVecs] = l2filtsvmgrad(allPatches(sidx:eidx), yVecs);
-		filtVecs = filtVecs - lambda * gFiltVecs;
-		wVecs = wVecs - lambda * gWVecs;
+		[gFiltVecs, gWVecs] = l2filtsvmgrad(filtVecs, wVecs, allPatches(sidx:eidx), yVecs, .5/C);
+		filtVecs = filtVecs - step * gFiltVecs;
+		wVecs = wVecs - step * gWVecs;
 	end
 end
 
-function [gFiltVecs, gWVecs] = l2filtsvmgrad(filtVecs, w, P, yv, C)
+function [gFiltVecs, gWVecs] = l2filtsvmgrad(filtVecs, w, P, yv, lambda)
   %t1 = tic;
   gamma = 1;
   %filtVecs = reshape(filtVecs, fvSize(1), fvSize(2));
 	[nfilt, fd] = size(filtVecs);	fd = fd-1;
+    numImg = size(P,1);
 	gFiltVecs = zeros(size(filtVecs));
   %trainFV = extract_features_sae_p(P, filtVecs);
 	% forward propagation
-	for i=1:length(P),
-		P{i}
-	end
+	for i=1:numImg,
+		for j=1:size(P, 2),
+			trainFV(i, (j-1)*nfilt+1:j*nfilt) = mean(sigmoid_sae([P{i,j}, ones(size(P{i,j}, 1), 1)]*filtVecs', gamma));
+		end
+	end 
+  % get image feature vectors
   trainFV = [trainFV, ones(size(trainFV, 1), 1)];
+  % calculate prediction values
   pr = trainFV * w;
-  numImg = size(P,1);
   FminusY = pr - yv;
   FminusY(pr .* yv > 1) = 0;
-  loss = .5 * sum(sum(w .^ 2)) + C * mean(sum(FminusY .^ 2, 2));
-  for k = 1:fvSize(1)
+  %lambda = .5/C;
+  loss = lambda * sum(sum(w .^ 2)) + mean(sum(FminusY .^ 2, 2));
+  % calculate gWvecs
+  gWVecs = 2 * lambda * w + 2 * trainFV' * FminusY / numImg;
+  error('to be continued here');
+  % calculate gFiltVecs
+  for k = 1:nfilt,
     % calculate delta(Q)/delta(vk) for each image i
-    ds = zeros(numImg, fvSize(2));
+    ds = zeros(numImg, fd);
     for i = 1:numImg
       patches = [P{i} ones(size(P{1},1),1)];
 	  % patches: m x d, filtVecs: n x d
